@@ -1,0 +1,228 @@
+Function ColumnLetter(ColumnNumber As Integer) As String
+  If ColumnNumber > 26 Then
+    ColumnLetter = Chr(Int((ColumnNumber - 1) / 26) + 64) & Chr(((ColumnNumber - 1) Mod 26) + 65)
+  Else
+    ColumnLetter = Chr(ColumnNumber + 64)
+  End If
+End Function
+
+
+
+
+Sub AnalysisSlidedata()
+'
+' Macro
+'
+'
+Count_Sheets = Sheets.Count
+
+
+nb_pad  = InputBox("Enter the number of pad (16 for 16 pad slide)")
+nb_gen  = InputBox("Enter the number of antigens (256 for 16 pad slide)")
+
+
+Set CombinedSheet = Sheets.Add(After:=Sheets(Sheets.Count))
+CombinedSheet.Name = "combinedRaw"
+
+    
+For i = 1 To Count_Sheets 
+    Sheets(i).Activate
+    Range("A1").Select
+    Rows("1:64").Select
+    Selection.Delete Shift:=xlUp
+    Columns("Y:Z").Select
+    Selection.Delete Shift:=xlToLeft
+    Columns("G:W").Select
+    Selection.Delete Shift:=xlToLeft
+
+    Cells(1, 7).Select
+    ActiveCell.FormulaR1C1 = ActiveSheet.Name & "_1"
+
+
+    For j = 2 To nb_pad
+
+        Cells(1, 6+j).Select
+        ActiveCell.FormulaR1C1 = ActiveSheet.Name & "_" & j
+    
+        Range(Cells(1+1+nb_gen*(j-1),7), Cells(1+nb_gen*j,7)).Select
+        Selection.Copy
+        Cells(2,6+j).Select
+        ActiveSheet.Paste
+    Next j
+    
+    If (i = 1) Then
+        Range("A1", Cells(1+nb_gen,6+nb_pad)).Select
+        Selection.Copy
+        CombinedSheet.Activate
+        Range("A1").Select
+        ActiveSheet.Paste
+    Else
+        Range("G1", Cells(1+nb_gen,6+nb_pad)).Select
+        Selection.Copy
+        CombinedSheet.Activate
+        Cells(1, 7 + (nb_pad * (i - 1))).Select
+        ActiveSheet.Paste
+    End If
+
+Next i
+
+nb_total_row = (nb_pad + 1) * (nb_gen+1)
+
+CombinedSheet.Activate
+Cells.Select
+Range("A1").Activate
+Application.CutCopyMode = False
+ActiveSheet.Sort.SortFields.Clear
+ActiveSheet.Sort.SortFields.Add Key:=Range("F2","F"&(1+nb_gen)), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+With ActiveSheet.Sort
+        .SetRange Range("A1",Cells(nb_gen+1, 7 + (nb_pad * Count_Sheets)))
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+End With
+
+
+yBHb = nb_gen
+
+yBHe = 1
+
+nb_agene = yBHe-yBHb + 1
+
+yBHe = nb_gen
+
+Cells(1, 6).Select
+Cells.Find(What:="NoDNA", After:=ActiveCell, LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False).Activate
+yndb = ActiveCell.Row
+
+Cells(nb_total_row+1, 6).Select
+Cells.Find(What:="NoDNA", After:=ActiveCell, LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False).Activate
+ynde = ActiveCell.Row
+
+nb_noDNA = ynde-yndb + 1
+
+yBHe = nb_gen + 1
+
+
+Range(Cells(yndb ,1), Cells(ynde ,7 + (nb_pad * Count_Sheets))).Select
+Selection.Cut
+Rows(yBHe +1).Select
+Cells(yBHe + 1, 1).Select
+Selection.Insert Shift:=xlDown  
+
+Rows(yBHe + nb_noDNA+1).Select
+Selection.Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove  
+Range("A1", Cells(yBHe + nb_noDNA ,7 + (nb_pad * Count_Sheets))).Select
+Selection.Copy
+
+
+Set CombinedSheet2 = Sheets.Add(After:=Sheets(Sheets.Count))
+CombinedSheet2.Name = "AnalysisNoDNA"
+
+
+CombinedSheet2.Activate
+Range("A1").Select
+ActiveSheet.Paste
+
+yBHe = nb_gen- nb_noDNA +1
+
+Rows(yBHe + 1).Select
+Selection.Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove  
+
+Cells(yBHe + 1, 6).Select
+
+
+For i = 1 To nb_pad * Count_Sheets
+    Cells(yBHe + 1, 6 + i).Select
+    ActiveCell.FormulaR1C1 = "=AVERAGE(R[1]C:R[" & nb_noDNA & "]C)"
+Next i
+
+
+Cells(yBHe + 1, 7 + nb_pad * Count_Sheets).Select
+ActiveCell.FormulaR1C1 = "=AVERAGE(RC[" & (-1 * nb_pad * Count_Sheets) & "]:RC[-1])"
+
+Cells(yBHe + 2, 7 + nb_pad * Count_Sheets).Select
+ActiveCell.FormulaR1C1 = "=STDEV(RC[" & (-1 * nb_pad * Count_Sheets) & "]:R[" & (nb_noDNA-1) & "]C[-1])"
+
+Cells(yBHe + 3, 7 + nb_pad * Count_Sheets).Select
+ActiveCell.FormulaR1C1 = "=SUM(R[-1]C[" & (-1 * nb_pad * Count_Sheets) & "]:R[" & (nb_noDNA-2) & "]C[-1])"
+
+
+Cells.Select
+Range("A1").Activate
+Selection.Copy
+
+Set CombinedSheet3 = Sheets.Add(After:=Sheets(Sheets.Count))
+CombinedSheet3.Name = "NoDNA2"
+
+
+CombinedSheet3.Activate
+Cells.Select
+Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+
+
+For i = 1 To nb_pad * Count_Sheets
+    Cells(1, 6 + 2*i).Select
+    Selection.EntireColumn.Insert , CopyOrigin:=xlFormatFromLeftOrAbove
+
+    Cells(1, 5 + 2*i).Select
+    Selection.Copy
+    Cells(1, 6 + 2*i).Select
+    ActiveSheet.Paste
+
+    Cells(2, 6 + 2*i).Select
+'   ActiveCell.FormulaR1C1 = "=IF(RC[-1]-R" & (yBHe + 1) & "C[-1]<0,0,RC[-1]-R" & (yBHe + 1) & "C[-1])"
+    ActiveCell.FormulaR1C1 = "=RC[-1]-R" & (yBHe + 1) & "C[-1]"
+
+    Cells(2, 6 + 2*i).Select
+    Selection.Copy
+
+    Cells(yBHe, 6 + 2*i).Select
+    Range(Selection, Selection.End(xlUp)).Select
+    ActiveSheet.Paste
+ 
+
+Next i
+
+
+
+Cells.Select
+Range("A1").Activate
+Selection.Copy
+
+Set CombinedSheet4 = Sheets.Add(After:=Sheets(Sheets.Count))
+CombinedSheet4.Name = "Analysis1"
+
+
+CombinedSheet4.Activate
+Cells.Select
+Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+
+
+For i = 1 To nb_pad * Count_Sheets
+    Columns(6+i).Select
+    Selection.Delete
+Next i
+
+Cells(1, 6 + i).Select
+ActiveCell.FormulaR1C1 = "Average Antigen Intensity"
+
+Cells(2, 6 + i).Select
+ActiveCell.FormulaR1C1 = "=AVERAGE(RC[" & (-1 * i + 1) & "]:RC[-1])"
+Cells(2, 6 + i).Select
+Selection.Copy
+
+Cells(yBHe, 6 + i).Select
+Range(Selection, Selection.End(xlUp)).Select
+ActiveSheet.Paste
+
+Range("A1").Select
+
+
+
+
+End Sub
+
+
+
